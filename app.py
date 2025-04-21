@@ -33,6 +33,25 @@ def login():
 def logout():
     session.pop('admin', None)
     return redirect(url_for('home'))
+app.config['SESSION_COOKIE_DOMAIN'] = 'nixapp.org'
+app.config['SESSION_COOKIE_SECURE'] = True
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if session.get('admin'):
+        return redirect(url_for('inventory'))
+
+    error = None
+    if request.method == 'POST':
+        user = request.form['username']
+        password = request.form['password']
+        if user == 'admin' and password == '1234':
+            session['admin'] = True
+            return redirect(url_for('inventory'))
+        else:
+            error = "Invalid credentials. Please try again."
+    return render_template('login.html', error=error)
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)

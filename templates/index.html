@@ -11,7 +11,7 @@
 
   <div class="content">
     <header>
-      <a href="https://nixapp.onrender.com/" class="home-button" aria-label="Home">
+      <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
         <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="20" height="20">
           <path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-6v-6h-4v6H4a1 1 0 0 1-1-1V9.75z"/>
         </svg>
@@ -19,11 +19,11 @@
       <h1>NixApp</h1>
 
       {% if 'admin' in session %}
-        <a href="https://nixapp.onrender.com/logout">
+        <a href="{{ url_for('logout') }}">
           <button id="loginBtn">Logout</button>
         </a>
       {% else %}
-        <a href="https://nixapp.onrender.com/login">
+        <a href="{{ url_for('login') }}">
           <button id="loginBtn">Admin</button>
         </a>
       {% endif %}
@@ -34,11 +34,11 @@
         <h2>Movie Streaming Site</h2>
         <p>Watch and explore a curated collection of movies hosted on NixApp.</p>
       </a>
-      <a href="https://nixapp.onrender.com/inventory" class="project-card">
+      <a href="{{ url_for('inventory') }}" class="project-card">
         <h2>Inventory</h2>
         <p>Live Inventory, features prices and quantity.</p>
       </a>
-      <a href="https://nixapp.onrender.com/downloads" class="project-card">
+      <a href="{{ url_for('downloads') }}" class="project-card">
         <h2>Downloads</h2>
         <p>Downloads for projects and other files.</p>
       </a>
