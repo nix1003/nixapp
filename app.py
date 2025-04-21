@@ -1,11 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-@app.route('/downloads')
-def downloads():
-    return render_template('downloads.html')
+
+# Optional: Ensure cookie config works well with Cloudflare and Render
+app.config['SESSION_COOKIE_DOMAIN'] = 'nixapp.org'
+app.config['SESSION_COOKIE_SECURE'] = True
 
 @app.route('/')
 def home():
@@ -16,25 +18,9 @@ def inventory():
     is_admin = session.get('admin', False)
     return render_template('inventory.html', is_admin=is_admin)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        user = request.form['username']
-        password = request.form['password']
-        if user == 'admin' and password == '1234':
-            session['admin'] = True
-            return redirect(url_for('inventory'))
-        else:
-            error = "Invalid credentials. Please try again."
-    return render_template('login.html', error=error)
-
-@app.route('/logout')
-def logout():
-    session.pop('admin', None)
-    return redirect(url_for('home'))
-app.config['SESSION_COOKIE_DOMAIN'] = 'nixapp.org'
-app.config['SESSION_COOKIE_SECURE'] = True
+@app.route('/downloads')
+def downloads():
+    return render_template('downloads.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -52,6 +38,10 @@ def login():
             error = "Invalid credentials. Please try again."
     return render_template('login.html', error=error)
 
+@app.route('/logout')
+def logout():
+    session.pop('admin', None)
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)
