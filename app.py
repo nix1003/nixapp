@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session
+from werkzeug.middleware.proxy_fix import ProxyFix
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
+app.wsgi_app = proxyFix(app.wsgi_app, x_proto=1, x_host=1)
 @app.route('/downloads')
 def downloads():
     return render_template('downloads.html')
