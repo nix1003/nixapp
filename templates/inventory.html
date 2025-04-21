@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventory | NixApp</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  <style>
+    .inventory-wrapper {
+      background: #fff;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 800px;
+      margin: 2rem auto;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #eee;
+      font-weight: bold;
+    }
+
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+
+    .edit-field {
+      width: 100%;
+      padding: 0.25rem;
+      font-size: 0.9rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    .save-btn {
+      background-color: #444;
+      color: white;
+      padding: 0.3rem 0.7rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .save-btn:hover {
+      background-color: #666;
+    }
+
+    #loginBtn {
+      position: absolute;
+      top: 1.2rem;
+      right: 1rem;
+      background-color: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 0.4rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    #loginBtn:hover {
+      background-color: white;
+      color: #222;
+    }
+  </style>
+</head>
+<body>
+  <body data-admin="{{ 'true' if is_admin else 'false' }}">
+  <div id="particles-js"></div>
+  <div class="content">
+    <header>
+      <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-6v-6h-4v6H4a1 1 0 0 1-1-1V9.75z"/>
+        </svg>
+      </a>
+      <h1>NixApp</h1>
+      {% if 'admin' in session %}
+        <a href="{{ url_for('logout') }}"><button id="loginBtn">Logout</button></a>
+      {% else %}
+        <a href="{{ url_for('login') }}"><button id="loginBtn">Admin</button></a>
+      {% endif %}
+    </header>
+
+    <main class="container">
+      <div class="inventory-wrapper">
+        <h2 style="text-align:center; color:#444; margin-bottom:1.5rem;">Inventory System</h2>
+
+        <input type="text" id="searchInput" placeholder="Search by item name..." />
+
+        <table id="inventoryTable">
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th>Quantity</th>
+              <th>Price ($)</th>
+              <th>Product Page</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- JS-generated rows go here -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <footer>
+      &copy; 2025 NixApp
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script src="{{ url_for('static', filename='inventory.js') }}"></script>
+</body>
+</html>
