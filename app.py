@@ -46,7 +46,8 @@ def home():
 @app.route('/inventory')
 def inventory():
     is_admin = session.get('user_type') == 'admin'
-    return render_template('inventory.html', is_admin=is_admin)
+    username = session.get('username') if is_admin else None
+    return render_template('inventory.html', is_admin=is_admin, username=username)
 
 @app.route('/api/inventory')
 def api_inventory():
