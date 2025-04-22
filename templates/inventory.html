@@ -98,7 +98,7 @@
       </a>
       <h1>NixApp</h1>
 
-      {% if 'admin' in session %}
+      {% if 'admin' %}
         <a href="{{ url_for('logout') }}"><button id="loginBtn">Logout</button></a>
       {% else %}
         <a href="{{ url_for('login') }}"><button id="loginBtn">Admin</button></a>
