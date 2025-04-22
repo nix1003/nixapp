@@ -7,6 +7,7 @@ app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Only use this in production
 app.config['SESSION_COOKIE_DOMAIN'] = 'nixapp.org'
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -14,10 +15,15 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 INVENTORY_FILE = 'inventory.json'
 
+# ✅ Multi-admin credentials
 ADMINS = {
     'lb': '6918$',
     'nic': '6918$'
 }
+
+# ---------------------------- #
+# Inventory file helpers
+# ---------------------------- #
 
 def load_inventory():
     if not os.path.exists(INVENTORY_FILE):
@@ -28,6 +34,10 @@ def load_inventory():
 def save_inventory(data):
     with open(INVENTORY_FILE, 'w') as f:
         json.dump(data, f, indent=2)
+
+# ---------------------------- #
+# Routes
+# ---------------------------- #
 
 @app.route('/')
 def home():
@@ -67,24 +77,30 @@ def downloads():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Debug: log current session state
+    print(f"Session BEFORE login: {dict(session)}")
+
     if session.get('user_type') == 'admin':
-        print(f"Logged in as: {user}")
-        print(f"Session data: {dict(session)}")
+        print(f"Already logged in as: {session.get('username')}")
         return redirect(url_for('inventory'))
 
     error = None
     if request.method == 'POST':
         user = request.form['username']
         password = request.form['password']
+        print(f"Login attempt - user: {user}, password: {password}")
 
-        # ✅ Check against admin list
         if user in ADMINS and ADMINS[user] == password:
             session['user_type'] = 'admin'
             session['username'] = user
             session.permanent = True
+            print(f"✅ Login success for user: {user}")
+            print(f"Session AFTER login: {dict(session)}")
             return redirect(url_for('inventory'))
         else:
+            print(f"❌ Login failed for user: {user}")
             error = "Invalid credentials. Please try again."
+
     return render_template('login.html', error=error)
 
 @app.route('/api/add', methods=['POST'])
@@ -124,8 +140,16 @@ def api_delete_item():
 
 @app.route('/logout')
 def logout():
+    print(f"Logging out user: {session.get('username')}")
     session.clear()
     return redirect(url_for('home'))
+
+# ✅ Optional debug route
+@app.route('/sessiontest')
+def session_test():
+    return jsonify(dict(session))
+
+# ---------------------------- #
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)
