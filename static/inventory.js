@@ -49,18 +49,9 @@ function renderTable(data) {
   });
 
   if (isAdmin) {
-    addAddRow(); // Add blank form row at the bottom
+    addAddRow(); // Add blank form row
+    addSaveAllButton(); // Add Save All button
   }
-  if (isAdmin) {
-    const saveAllBtn = document.createElement("button");
-    saveAllBtn.textContent = "Save All";
-    saveAllBtn.className = "save-btn";
-    saveAllBtn.style.marginTop = "1rem";
-    saveAllBtn.onclick = saveAllRows;
-  
-    const wrapper = document.querySelector(".inventory-wrapper");
-    wrapper.appendChild(saveAllBtn);
-  }  
 }
 
 // Save updated item to server
@@ -76,43 +67,6 @@ function saveRow(index) {
       ? parseFloat(value)
       : value;
   });
-
-  function saveAllRows() {
-    const updatedItems = [];
-  
-    inventoryData.forEach((item, index) => {
-      const inputs = document.querySelectorAll(`input[data-index="${index}"]`);
-      const updatedItem = { ...item };
-  
-      inputs.forEach(input => {
-        const field = input.getAttribute("data-field");
-        const value = input.value;
-  
-        updatedItem[field] = (field === "quantity" || field === "price")
-          ? parseFloat(value)
-          : value;
-      });
-  
-      updatedItems.push(updatedItem);
-    });
-  
-    let successCount = 0;
-  
-    Promise.all(updatedItems.map(item => {
-      return fetch("/api/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item)
-      }).then(res => res.ok && res.json())
-        .then(res => {
-          if (res && res.status === "success") successCount++;
-        });
-    })).then(() => {
-      alert(`Saved ${successCount} item(s)!`);
-      loadInventory();
-    });
-  }
-  
 
   fetch("/api/update", {
     method: "POST",
@@ -130,7 +84,60 @@ function saveRow(index) {
   });
 }
 
-// Delete item from server
+// Save all rows
+function saveAllRows() {
+  const updatedItems = [];
+
+  inventoryData.forEach((item, index) => {
+    const inputs = document.querySelectorAll(`input[data-index="${index}"]`);
+    const updatedItem = { ...item };
+
+    inputs.forEach(input => {
+      const field = input.getAttribute("data-field");
+      const value = input.value;
+
+      updatedItem[field] = (field === "quantity" || field === "price")
+        ? parseFloat(value)
+        : value;
+    });
+
+    updatedItems.push(updatedItem);
+  });
+
+  let successCount = 0;
+
+  Promise.all(updatedItems.map(item => {
+    return fetch("/api/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item)
+    }).then(res => res.ok && res.json())
+      .then(res => {
+        if (res && res.status === "success") successCount++;
+      });
+  })).then(() => {
+    alert(`Saved ${successCount} item(s)!`);
+    loadInventory();
+  });
+}
+
+// Add Save All Button
+function addSaveAllButton() {
+  let existing = document.getElementById("saveAllBtn");
+  if (existing) existing.remove();
+
+  const btn = document.createElement("button");
+  btn.textContent = "Save All";
+  btn.className = "save-btn";
+  btn.id = "saveAllBtn";
+  btn.style.marginTop = "1rem";
+  btn.onclick = saveAllRows;
+
+  const wrapper = document.querySelector(".inventory-wrapper");
+  wrapper.appendChild(btn);
+}
+
+// Delete item
 function deleteRow(id) {
   if (!confirm("Are you sure you want to delete this item?")) return;
 
@@ -200,7 +207,7 @@ function addItem() {
   });
 }
 
-// Filter table by search
+// Filter by search
 searchInput.addEventListener("input", () => {
   const searchTerm = searchInput.value.toLowerCase();
   const filtered = inventoryData.filter(item =>
