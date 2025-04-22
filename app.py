@@ -14,6 +14,11 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 INVENTORY_FILE = 'inventory.json'
 
+ADMINS = {
+    'lb': '6918$',
+    'nic': '6918$'
+}
+
 def load_inventory():
     if not os.path.exists(INVENTORY_FILE):
         return []
@@ -30,7 +35,7 @@ def home():
 
 @app.route('/inventory')
 def inventory():
-    is_admin = session.get('admin', False)
+    is_admin = session.get('user_type') == 'admin'
     return render_template('inventory.html', is_admin=is_admin)
 
 @app.route('/api/inventory')
@@ -39,7 +44,7 @@ def api_inventory():
 
 @app.route('/api/update', methods=['POST'])
 def update_item():
-    if not session.get('admin'):
+    if session.get('user_type') != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
@@ -47,7 +52,7 @@ def update_item():
 
     for item in inventory:
         if item['id'] == data['id']:
-            item['name'] = data['name']            # ✅ Fix here
+            item['name'] = data['name']
             item['quantity'] = data['quantity']
             item['price'] = data['price']
             item['url'] = data['url']
@@ -62,15 +67,18 @@ def downloads():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if session.get('admin'):
+    if session.get('user_type') == 'admin':
         return redirect(url_for('inventory'))
 
     error = None
     if request.method == 'POST':
         user = request.form['username']
         password = request.form['password']
-        if user == 'admin' and password == '1234':
-            session['admin'] = True
+
+        # ✅ Check against admin list
+        if user in ADMINS and ADMINS[user] == password:
+            session['user_type'] = 'admin'
+            session['username'] = user
             session.permanent = True
             return redirect(url_for('inventory'))
         else:
@@ -79,7 +87,7 @@ def login():
 
 @app.route('/api/add', methods=['POST'])
 def api_add_item():
-    if not session.get('admin'):
+    if session.get('user_type') != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
@@ -100,7 +108,7 @@ def api_add_item():
 
 @app.route('/api/delete', methods=['POST'])
 def api_delete_item():
-    if not session.get('admin'):
+    if session.get('user_type') != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
@@ -112,10 +120,9 @@ def api_delete_item():
 
     return jsonify({'status': 'success'})
 
-
 @app.route('/logout')
 def logout():
-    session.pop('admin', None)
+    session.clear()
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
