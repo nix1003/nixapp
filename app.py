@@ -68,6 +68,8 @@ def downloads():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('user_type') == 'admin':
+        print(f"Logged in as: {user}")
+        print(f"Session data: {dict(session)}")
         return redirect(url_for('inventory'))
 
     error = None
