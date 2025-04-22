@@ -51,6 +51,16 @@ function renderTable(data) {
   if (isAdmin) {
     addAddRow(); // Add blank form row at the bottom
   }
+  if (isAdmin) {
+    const saveAllBtn = document.createElement("button");
+    saveAllBtn.textContent = "Save All";
+    saveAllBtn.className = "save-btn";
+    saveAllBtn.style.marginTop = "1rem";
+    saveAllBtn.onclick = saveAllRows;
+  
+    const wrapper = document.querySelector(".inventory-wrapper");
+    wrapper.appendChild(saveAllBtn);
+  }  
 }
 
 // Save updated item to server
@@ -66,6 +76,43 @@ function saveRow(index) {
       ? parseFloat(value)
       : value;
   });
+
+  function saveAllRows() {
+    const updatedItems = [];
+  
+    inventoryData.forEach((item, index) => {
+      const inputs = document.querySelectorAll(`input[data-index="${index}"]`);
+      const updatedItem = { ...item };
+  
+      inputs.forEach(input => {
+        const field = input.getAttribute("data-field");
+        const value = input.value;
+  
+        updatedItem[field] = (field === "quantity" || field === "price")
+          ? parseFloat(value)
+          : value;
+      });
+  
+      updatedItems.push(updatedItem);
+    });
+  
+    let successCount = 0;
+  
+    Promise.all(updatedItems.map(item => {
+      return fetch("/api/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item)
+      }).then(res => res.ok && res.json())
+        .then(res => {
+          if (res && res.status === "success") successCount++;
+        });
+    })).then(() => {
+      alert(`Saved ${successCount} item(s)!`);
+      loadInventory();
+    });
+  }
+  
 
   fetch("/api/update", {
     method: "POST",
