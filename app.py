@@ -77,6 +77,42 @@ def login():
             error = "Invalid credentials. Please try again."
     return render_template('login.html', error=error)
 
+@app.route('/api/add', methods=['POST'])
+def api_add_item():
+    if not session.get('admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    inventory = load_inventory()
+    new_id = max([item.get("id", 0) for item in inventory], default=0) + 1
+
+    new_item = {
+        "id": new_id,
+        "name": data.get("name"),
+        "quantity": data.get("quantity"),
+        "price": data.get("price", 0),
+        "url": data.get("url", "")
+    }
+
+    inventory.append(new_item)
+    save_inventory(inventory)
+    return jsonify({'status': 'success'})
+
+@app.route('/api/delete', methods=['POST'])
+def api_delete_item():
+    if not session.get('admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    item_id = data.get("id")
+
+    inventory = load_inventory()
+    updated_inventory = [item for item in inventory if item["id"] != item_id]
+    save_inventory(updated_inventory)
+
+    return jsonify({'status': 'success'})
+
+
 @app.route('/logout')
 def logout():
     session.pop('admin', None)

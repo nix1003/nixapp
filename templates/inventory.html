@@ -87,8 +87,7 @@
     }
   </style>
 </head>
-<body>
-  <body data-admin="{{ 'true' if is_admin else 'false' }}">
+<body data-admin="{{ 'true' if is_admin else 'false' }}">
   <div id="particles-js"></div>
   <div class="content">
     <header>
@@ -98,6 +97,7 @@
         </svg>
       </a>
       <h1>NixApp</h1>
+
       {% if 'admin' in session %}
         <a href="{{ url_for('logout') }}"><button id="loginBtn">Logout</button></a>
       {% else %}
