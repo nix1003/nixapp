@@ -1,9 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_sqlalchemy import SQLAlchemy
 import json
 import os
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 app.secret_key = 'your_secret_key'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
@@ -25,15 +29,14 @@ ADMINS = {
 # Inventory file helpers
 # ---------------------------- #
 
-def load_inventory():
-    if not os.path.exists(INVENTORY_FILE):
-        return []
-    with open(INVENTORY_FILE, 'r') as f:
-        return json.load(f)
 
-def save_inventory(data):
-    with open(INVENTORY_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+
+class InventoryItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, default=0.0)
+    url = db.Column(db.String(255))
 
 # ---------------------------- #
 # Routes
@@ -51,7 +54,14 @@ def inventory():
 
 @app.route('/api/inventory')
 def api_inventory():
-    return jsonify(load_inventory())
+    items = InventoryItem.query.all()
+    return jsonify([{
+        'id': item.id,
+        'name': item.name,
+        'quantity': item.quantity,
+        'price': item.price,
+        'url': item.url
+    } for item in items])
 
 @app.route('/api/update', methods=['POST'])
 def update_item():
@@ -59,17 +69,16 @@ def update_item():
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
-    inventory = load_inventory()
+    item = InventoryItem.query.get(data['id'])
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
 
-    for item in inventory:
-        if item['id'] == data['id']:
-            item['name'] = data['name']
-            item['quantity'] = data['quantity']
-            item['price'] = data['price']
-            item['url'] = data['url']
-            break
+    item.name = data['name']
+    item.quantity = data['quantity']
+    item.price = data.get('price', 0)
+    item.url = data.get('url', "")
+    db.session.commit()
 
-    save_inventory(inventory)
     return jsonify({'status': 'success'})
 
 @app.route('/downloads')
@@ -110,19 +119,15 @@ def api_add_item():
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
-    inventory = load_inventory()
-    new_id = max([item.get("id", 0) for item in inventory], default=0) + 1
+    new_item = InventoryItem(
+        name=data.get("name"),
+        quantity=data.get("quantity"),
+        price=data.get("price", 0),
+        url=data.get("url", "")
+    )
+    db.session.add(new_item)
+    db.session.commit()
 
-    new_item = {
-        "id": new_id,
-        "name": data.get("name"),
-        "quantity": data.get("quantity"),
-        "price": data.get("price", 0),
-        "url": data.get("url", "")
-    }
-
-    inventory.append(new_item)
-    save_inventory(inventory)
     return jsonify({'status': 'success'})
 
 @app.route('/api/delete', methods=['POST'])
@@ -131,11 +136,10 @@ def api_delete_item():
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
-    item_id = data.get("id")
-
-    inventory = load_inventory()
-    updated_inventory = [item for item in inventory if item["id"] != item_id]
-    save_inventory(updated_inventory)
+    item = InventoryItem.query.get(data.get("id"))
+    if item:
+        db.session.delete(item)
+        db.session.commit()
 
     return jsonify({'status': 'success'})
 
@@ -151,6 +155,9 @@ def session_test():
     return jsonify(dict(session))
 
 # ---------------------------- #
+
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)
