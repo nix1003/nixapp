@@ -42,6 +42,15 @@ class InventoryItem(db.Model):
 # Routes
 # ---------------------------- #
 
+@app.route('/debug-db-info')
+def debug_db_info():
+    db_path = app.config['SQLALCHEMY_DATABASE_URI']
+    exists = os.path.exists('/mnt/data/inventory.db')
+    return jsonify({
+        'db_path': db_path,
+        'exists_at_mnt_data': exists
+    })
+
 @app.route('/')
 def home():
     return render_template('index.html')
