@@ -37,20 +37,27 @@
       </div>
     
       {% if is_admin %}
-<!-- Upload form appears here only for admins -->
-<form method="POST" enctype="multipart/form-data">
-  <input type="file" name="file" required>
-  <button type="submit" class="view-button">Upload</button>
-</form>
-{% endif %}
+      <!-- Upload form appears here only for admins -->
+      <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" required>
+        <button type="submit" class="view-button">Upload</button>
+      </form>
+      {% endif %}
 
-    
       <div class="project-card" style="max-width: 600px; margin: 2rem auto;">
         <h3>Uploaded Files</h3>
         {% if files %}
           <ul style="text-align: left;">
             {% for file in files %}
-              <li><a href="{{ url_for('static', filename='uploads/' ~ file) }}" target="_blank">{{ file }}</a></li>
+              <li>
+                <a href="{{ url_for('static', filename='uploads/' ~ file) }}" target="_blank">{{ file }}</a>
+                {% if is_admin %}
+                  <form action="{{ url_for('delete_file') }}" method="post" style="display:inline;">
+                    <input type="hidden" name="filename" value="{{ file }}">
+                    <button type="submit" onclick="return confirm('Delete {{ file }}?');">🗑️ Delete</button>
+                  </form>
+                {% endif %}
+              </li>
             {% endfor %}
           </ul>
         {% else %}
@@ -59,7 +66,6 @@
       </div>
     </main>
     
-
     <footer>
       &copy; 2025 NixApp
     </footer>

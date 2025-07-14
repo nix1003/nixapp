@@ -104,6 +104,26 @@ def downloads():
     files = os.listdir(upload_dir)
     return render_template('downloads.html', is_admin=is_admin, files=files)
 
+# <-- Added: Delete uploaded file route
+@app.route('/delete-file', methods=['POST'])
+def delete_file():
+    if session.get('user_type') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    filename = request.form.get('filename')
+    if not filename:
+        flash('No file specified.')
+        return redirect(url_for('downloads'))
+
+    file_path = os.path.join('static', 'uploads', filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        flash(f'File "{filename}" deleted successfully.')
+    else:
+        flash(f'File "{filename}" not found.')
+
+    return redirect(url_for('downloads'))
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('user_type') == 'admin':
