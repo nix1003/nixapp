@@ -30,8 +30,8 @@ db = SQLAlchemy(app)
 
 # Multi-admin credentials
 ADMINS = {
-    'lb': '6918$',
-    'nic': '6918$'
+    'lb': '6918',
+    'modz': '6918'
 }
 
 # Database model
