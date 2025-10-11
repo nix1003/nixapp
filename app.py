@@ -67,6 +67,17 @@ def api_inventory():
     items = InventoryItem.query.all()
     return jsonify([{ 'id': item.id, 'name': item.name, 'quantity': item.quantity, 'price': item.price, 'url': item.url } for item in items])
 
+@app.route('/links')
+def links():
+    # List of links to display
+    links_list = [
+        {"name": "NixApp Home", "url": "https://nixapp.org"},
+        {"name": "GitHub", "url": "https://github.com/yourusername"},
+        {"name": "Reddit", "url": "https://www.reddit.com/user/yourusername"},
+        {"name": "Contact", "url": "mailto:contact@nixapp.org"}
+    ]
+    return render_template('links.html', links=links_list)
+
 @app.route('/api/update', methods=['POST'])
 def update_item():
     if session.get('user_type') != 'admin':
