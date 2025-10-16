@@ -61,6 +61,8 @@ header h1 {
   margin: 0;
 }
 
+
+
 /* Home icon button (top-left) */
 .home-button {
   position: absolute;
@@ -257,3 +259,85 @@ footer {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Container for the two squares side by side */
+main.container {
+  display: flex;
+  justify-content: center; /* horizontal centering */
+  align-items: center;     /* vertical centering (if needed) */
+  gap: 40px;
+  padding: 40px 20px;
+  flex-wrap: wrap;
+}
+
+/* =============================== */
+/* Links page layout (horizontal)  */
+/* =============================== */
+.links-page {
+  flex-direction: row; /* side by side */
+}
+
+/* =============================== */
+/* Index page layout (vertical)    */
+/* =============================== */
+main.container.index-page {
+  display: flex;          /* ensure flex layout */
+  flex-direction: column; /* stack vertically */
+  align-items: center;    /* center horizontally */
+  justify-content: center; /* center vertically if needed */
+  gap: 5px;              /* smaller gap between squares */
+  height: auto;           /* fit content */
+  padding: 40px 20px;     /* optional padding */
+}
+
+/* Each square (shared) */
+.square {
+  background-color: #222222a1;
+  border-radius: 12px;
+  width: 280px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* center content horizontally */
+  padding: 20px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.square:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+/* Square titles */
+.square h2 {
+  margin-bottom: 15px;
+  font-size: 1.6rem;
+  font-weight: bold;
+}
+
+/* Square links */
+.square a {
+  display: block;
+  color: #00bfff;
+  font-weight: 500;
+  text-decoration: none;
+  margin: 5px 0;
+}
+
+.square a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .links-page, .index-page {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .square {
+    width: 90%;
+  }
+}

@@ -7,9 +7,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+  <!-- Particle background -->
   <div id="particles-js"></div>
 
   <div class="content">
+    <!-- Header -->
     <header>
       <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
         <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="20" height="20">
@@ -29,7 +31,8 @@
       {% endif %}
     </header>               
 
-    <main class="container">
+    <!-- Main content -->
+    <main class="container index-page">
       <!-- PROJECT BUTTONS -->
       <a href="https://www.ebay.com/usr/nix_shop" class="project-card" target="_blank">
         <h2>eBay Store</h2>
@@ -46,18 +49,19 @@
         <p>Downloads for projects and other files.</p>
       </a>
 
-      <!-- 🔗 LINKS BUTTON (MATCHING STYLE) -->
       <a href="{{ url_for('links') }}" class="project-card">
         <h2>Links</h2>
         <p>Collection of useful links.</p>
       </a>
     </main>
 
+    <!-- Footer -->
     <footer>
       &copy; 2025 NixApp
     </footer>
   </div>
 
+  <!-- Particles.js script -->
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <script>
     particlesJS.load('particles-js', '{{ url_for("static", filename="particles.json") }}', function () {
