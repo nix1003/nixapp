@@ -7,14 +7,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <style>
     html, body {
-      height: 100%;
       margin: 0;
-      display: flex;
-      flex-direction: column;
+      /* natural page height for scrolling */
     }
 
     .content {
-      flex: 1;
       display: flex;
       flex-direction: column;
     }
@@ -25,10 +22,11 @@
       border-radius: 20px;
       padding: 30px 40px;
       max-width: 900px;
-      margin: 100px auto;
+      margin: 40px auto;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
       color: #222;
       line-height: 1.6;
+      overflow: hidden; /* clears floats */
     }
 
     .guide-box h2, .guide-box h3 {
@@ -54,20 +52,17 @@
       text-align: center;
       color: #bbb;
       padding: 15px 0;
-      margin-top: auto; /* pushes footer to bottom */
+      margin-top: 40px; /* spacing from content */
     }
 
-    /* Image styling for floated image */
+    /* Responsive image styling */
     .img-left {
-      float: left;
-      width: 250px;
-      margin: 10px 20px 10px 0;
+      display: block;
+      width: 100%;       /* scales with container */
+      max-width: 700px;  /* prevents image from being too big */
+      margin: 10px 0 15px 0;
       border: 3px solid black;
       border-radius: 10px;
-    }
-
-    .clearfix {
-      overflow: hidden; /* clears floats */
     }
   </style>
 </head>
@@ -105,16 +100,49 @@
 
       <h3>4. Link Real Debird with Torrentio / Stremio</h3>
       <p>
-          Navigate to 'https://torrentio.strem.fun/configure'. First, we will start with the providers list. I will begin to attach pictures below.
+          Navigate to 'https://torrentio.strem.fun/configure'. First, we will start with the providers list. I will begin to attach pictures below. Make sure to only select the ones I did.
       </p>
 
       <img src="{{ url_for('static', filename='uploads/providers.png') }}" 
-           alt="Providers" 
-           style="display: block; width: 250px; margin: 10px 0 15px 0; border: 3px solid black; border-radius: 10px;">
+           alt="Providers" class="img-left">
 
-
-      </div>
+      <p>For Sorting, we want to select by quality then seeders. I would leave the Priority foreign language as None. Then, I would exclude 4K unless
+        you can actually run them. Leave max results and video  size limit alone.
+      </p>
       
+      <p>For the Debrid provider, select Real Debrid. It will then ask for the Real Debrid API key. Hit the green 'here' button. Copy that string and paste it
+         into the Torrentio configuration. For Debrid options make sure to click 'Don't show download to debrid links'. Here is an image of what it should look like.
+      </p>
+
+      <img src="{{ url_for('static', filename='uploads/example.png') }}" 
+           alt="Providers" class="img-left">
+
+      <p>Now, click 'INSTALL' and hit open in Stremio. Now try and play a movie or tv show. The stream list should look like this: </p>
+
+      <img src="{{ url_for('static', filename='uploads/streamlist.png') }}" 
+           alt="Providers" class="img-left">
+
+      <h3>5. How to add addons to Stremio</h3>
+      <p>First, we will start with adding the addon I created. Navigate to 'https://nixapp.org/downloads'. Hit 'Open in Stremio' and it should automatically
+        open Stremio. When promted, click 'Install'. 
+      </p>
+
+      <img src="{{ url_for('static', filename='uploads/nixredirect.png') }}" 
+           alt="Providers" class="img-left">
+
+      <p>It is the same for other addons. If they do not have an Install or open in Stremio button, copy and paste the link in the Stremio search bar.
+        Another addon is USA TV. Here is the link to it 'https://stremio-addons.com/usa-tv.html'. Simply click Install and wait for Stremio to open.
+      </p>
+
+      <h3>6. Finishing Touches</h3>
+      <p>Stremio will come paired with some addons by default. I removed some of them so here is a list of my current addons. </p>
+
+      <img src="{{ url_for('static', filename='uploads/addonslist1.png') }}" 
+           alt="Providers" class="img-left">
+
+      <img src="{{ url_for('static', filename='uploads/addonslist2.png') }}" 
+           alt="Providers" class="img-left">
+
     </main>
 
     <!-- Footer -->
