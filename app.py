@@ -194,6 +194,11 @@ def logout():
 def session_test():
     return jsonify(dict(session))
 
+@app.route('/stremioguide')
+def stremioguide():
+    return render_template('stremioguide.html')
+
+
 # ---------------------------- #
 
 if __name__ == '__main__':

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NixApp | Stremio Setup Guide</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Page-specific readability tweaks */
+    .guide-box {
+      background-color: rgba(240, 240, 240, 0.95);
+      border-radius: 20px;
+      padding: 30px 40px;
+      max-width: 900px;
+      margin: 100px auto;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+      color: #222;
+      line-height: 1.6;
+    }
+
+    .guide-box h2, .guide-box h3 {
+      color: #111;
+      margin-top: 25px;
+    }
+
+    .guide-box code {
+      background: #e0e0e0;
+      padding: 3px 6px;
+      border-radius: 6px;
+      font-family: monospace;
+    }
+
+    .guide-box pre {
+      background: #e0e0e0;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    footer {
+      text-align: center;
+      color: #bbb;
+      padding: 15px 0;
+      margin-top: auto; /* pushes footer to bottom */
+    }
+
+    /* Image styling for floated image */
+    .img-left {
+      float: left;
+      width: 250px;
+      margin: 10px 20px 10px 0;
+      border: 3px solid black;
+      border-radius: 10px;
+    }
+
+    .clearfix {
+      overflow: hidden; /* clears floats */
+    }
+  </style>
+</head>
+<body>
+  <!-- Particle background -->
+  <div id="particles-js"></div>
+
+  <div class="content">
+    <!-- Header -->
+    <header>
+      <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-6v-6h-4v6H4a1 1 0 0 1-1-1V9.75z"/>
+        </svg>
+      </a>
+      <h1>NixApp</h1>
+    </header>
+
+    <!-- Main Content -->
+    <main class="guide-box">
+      <h2>Getting Started</h2>
+      <p>This guide will help you install and configure Stremio. It will go over adding addons and linking Stremio with Real Debrid.</p>
+
+      <h3>1. Install Stremio / Setup Account.</h3>
+      <p>Download and install Stremio from the official website. Create an account or sign in if you already have one.</p>
+
+      <h3>2. Launch Stremio App</h3>
+      <p>Launch the app and sign into your account. If successful, you will see the catalogue of all the shows and movies.</p>
+
+      <h3>3. Setup Real Debrid Account</h3>
+      <p>Next, head over to 'real-debrid.com'. Hit 'Sign Up', it is located in the top right. Once logged in, click 'Premium Offers' located in the top bar.
+         Choose an option and click 'Subscribe'. Make sure you stay on 'real-debrid.com', sometimes there are ads. Once successful, navigate back to the home page.
+         You should see something like, '2025-12-27  (46 D)' next to Premium.
+      </p>
+
+      <h3>4. Link Real Debird with Torrentio / Stremio</h3>
+      <p>
+          Navigate to 'https://torrentio.strem.fun/configure'. First, we will start with the providers list. I will begin to attach pictures below.
+      </p>
+
+      <img src="{{ url_for('static', filename='uploads/providers.png') }}" 
+           alt="Providers" 
+           style="display: block; width: 250px; margin: 10px 0 15px 0; border: 3px solid black; border-radius: 10px;">
+
+
+      </div>
+      
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      &copy; 2025 NixApp
+    </footer>
+  </div>
+
+  <!-- Particles.js -->
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script>
+    particlesJS.load('particles-js', '{{ url_for("static", filename="particles.json") }}');
+  </script>
+</body>
+</html>
