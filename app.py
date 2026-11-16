@@ -1,11 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 import os
 
 # Initialize Flask app
 app = Flask(__name__, instance_relative_config=True)
-app.secret_key = 'your_secret_key'
+# Session secret comes from the SECRET_KEY environment variable (set it on Render).
+# Locally, a random key is used if none is set (you'll just get logged out on restart).
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    if os.environ.get("RENDER"):
+        raise RuntimeError("SECRET_KEY environment variable is not set on Render")
+    _secret = os.urandom(32).hex()
+app.secret_key = _secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Smart database path switching
@@ -28,11 +37,20 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 # Initialize database
 db = SQLAlchemy(app)
 
-# Multi-admin credentials
-ADMINS = {
-    'lb': '6918',
-    'modz': '6918'
-}
+# Admin accounts come from the ADMINS environment variable, as hashed passwords:
+#   ADMINS = username:hash,username2:hash2
+# Make a hash with:
+#   python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('NEW_PASSWORD'))"
+# If ADMINS is not set, nobody can log in.
+def _load_admins():
+    admins = {}
+    for entry in os.environ.get("ADMINS", "").split(","):
+        name, sep, pw_hash = entry.strip().partition(":")
+        if name and sep and pw_hash:
+            admins[name] = pw_hash
+    return admins
+
+ADMINS = _load_admins()
 
 # Database model
 class InventoryItem(db.Model):
@@ -43,15 +61,6 @@ class InventoryItem(db.Model):
     url = db.Column(db.String(255))
 
 # Routes
-@app.route('/debug-db-info')
-def debug_db_info():
-    db_path_real = db_path
-    exists = os.path.exists(db_path_real)
-    return jsonify({
-        'db_path': db_path_real,
-        'exists': exists
-    })
-
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -107,10 +116,13 @@ def downloads():
             flash('You must be an admin to upload.')
             return redirect(url_for('login'))
         uploaded_file = request.files['file']
-        if uploaded_file and uploaded_file.filename != '':
-            filepath = os.path.join(upload_dir, uploaded_file.filename)
+        safe_name = secure_filename(uploaded_file.filename) if uploaded_file else ''
+        if safe_name:
+            filepath = os.path.join(upload_dir, safe_name)
             uploaded_file.save(filepath)
             flash('File uploaded successfully!')
+        else:
+            flash('Invalid file name.')
 
     files = os.listdir(upload_dir)
     return render_template('downloads.html', is_admin=is_admin, files=files)
@@ -124,6 +136,11 @@ def delete_file():
     filename = request.form.get('filename')
     if not filename:
         flash('No file specified.')
+        return redirect(url_for('downloads'))
+
+    filename = secure_filename(filename)
+    if not filename:
+        flash('Invalid file name.')
         return redirect(url_for('downloads'))
 
     file_path = os.path.join('static', 'uploads', filename)
@@ -145,7 +162,7 @@ def login():
         user = request.form['username']
         password = request.form['password']
 
-        if user in ADMINS and ADMINS[user] == password:
+        if user in ADMINS and check_password_hash(ADMINS[user], password):
             session['user_type'] = 'admin'
             session['username'] = user
             session.permanent = True
@@ -189,10 +206,6 @@ def api_delete_item():
 def logout():
     session.clear()
     return redirect(url_for('home'))
-
-@app.route('/sessiontest')
-def session_test():
-    return jsonify(dict(session))
 
 @app.route('/stremioguide')
 def stremioguide():
