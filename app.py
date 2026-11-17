@@ -4,6 +4,8 @@ from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 import os
+import json
+from sqlalchemy import text, func, select, insert
 
 # Initialize Flask app
 app = Flask(__name__, instance_relative_config=True)
@@ -20,15 +22,20 @@ if not _secret:
 app.secret_key = _secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Smart database path switching
-if os.environ.get("RENDER"):
-    db_path = "/mnt/data/inventory.db"
-    os.makedirs("/mnt/data", exist_ok=True)
+# Database: use DATABASE_URL (free hosted Postgres) if set, otherwise a local SQLite file
+_db_url = os.environ.get("DATABASE_URL", "").strip()
+if _db_url:
+    if _db_url.startswith("postgres://"):
+        _db_url = "postgresql://" + _db_url[len("postgres://"):]
+    app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+    print("[nixapp] database: hosted Postgres (DATABASE_URL)", file=sys.stderr, flush=True)
 else:
     db_path = os.path.join(app.instance_path, "inventory.db")
     os.makedirs(app.instance_path, exist_ok=True)
-
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    if os.environ.get("RENDER"):
+        print("[nixapp] WARNING: DATABASE_URL not set; using a temporary SQLite file (changes will be lost on redeploy)", file=sys.stderr, flush=True)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Production cookie settings
@@ -63,6 +70,32 @@ class InventoryItem(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, default=0.0)
     url = db.Column(db.String(255))
+
+# Create tables, and load inventory_seed.json the first time the database is empty
+def _init_db():
+    seed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inventory_seed.json")
+    with app.app_context():
+        with db.engine.begin() as conn:
+            if conn.dialect.name == "postgresql":
+                # stops two gunicorn workers from seeding at the same time
+                conn.execute(text("SELECT pg_advisory_xact_lock(482611)"))
+            db.metadata.create_all(conn)
+            table = InventoryItem.__table__
+            count = conn.execute(select(func.count()).select_from(table)).scalar()
+            if count == 0 and os.path.exists(seed_path):
+                with open(seed_path, encoding="utf-8") as f:
+                    items = json.load(f)
+                rows = [{
+                    "name": i["name"],
+                    "quantity": int(i["quantity"]),
+                    "price": float(i.get("price") or 0),
+                    "url": i.get("url") or "",
+                } for i in items]
+                if rows:
+                    conn.execute(insert(table), rows)
+                print(f"[nixapp] loaded {len(rows)} items from inventory_seed.json", file=sys.stderr, flush=True)
+
+_init_db()
 
 # Routes
 @app.route('/')
