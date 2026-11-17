@@ -341,3 +341,135 @@ main.container.index-page {
     width: 90%;
   }
 }
+
+/* =============================== */
+/* Phone fixes (screens ≤ 600px)   */
+/* Desktop layout is unchanged.    */
+/* =============================== */
+@media (max-width: 600px) {
+  /* Padding no longer pushes boxes past the screen edge */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Header: leave room for the round buttons on each side */
+  header {
+    padding: 0.9rem 4.5rem;
+    min-height: 56px;
+  }
+  header h1 {
+    font-size: 1.4rem;
+  }
+  .home-button {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  #loginBtn,
+  html body #loginBtn {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* Page spacing */
+  .container,
+  main.container,
+  main.container.index-page {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 1.25rem 0.85rem;
+    gap: 1rem;
+  }
+
+  /* Home screen cards */
+  .project-card {
+    padding: 1.1rem 1.2rem;
+    margin-bottom: 0.25rem;
+  }
+  .project-card h2 {
+    font-size: 1.3rem;
+    margin: 0 0 0.35rem;
+  }
+  .project-card p {
+    margin: 0;
+  }
+  /* no "lift" effect on touch screens */
+  .project-card:hover {
+    transform: none;
+  }
+
+  /* Inventory */
+  html body .inventory-wrapper {
+    padding: 1.1rem 0.75rem;
+    margin: 0.5rem auto;
+    overflow-x: auto;
+  }
+  html body .inventory-wrapper h2 {
+    font-size: 1.35rem;
+    margin-bottom: 1rem !important;
+  }
+  html body .inventory-wrapper table {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  html body .inventory-wrapper th,
+  html body .inventory-wrapper td {
+    padding: 0.55rem 0.35rem;
+  }
+  html body #searchInput {
+    width: 100%;
+  }
+
+  /* Links page squares */
+  .square {
+    width: 100%;
+    min-height: 0;
+  }
+  .square:hover {
+    transform: none;
+  }
+  /* bigger tap targets for the links */
+  .square a {
+    padding: 0.45rem 0;
+    margin: 0;
+  }
+
+  /* Stremio guide */
+  html body .guide-box {
+    margin: 1rem 0.75rem;
+    padding: 1.25rem 1.1rem;
+    border-radius: 14px;
+  }
+
+  /* Inbox pages */
+  html body .inbox-wrapper {
+    padding: 1.1rem 0.85rem;
+    margin: 0.5rem auto;
+  }
+  html body .addr-table th,
+  html body .addr-table td {
+    padding: 0.5rem 0.3rem;
+    font-size: 0.9rem;
+    word-break: break-word;
+  }
+  html body .mail-frame {
+    height: 65vh;
+  }
+
+  /* Stop iPhones from zooming in when you tap a text box */
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="url"],
+  input:not([type]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
