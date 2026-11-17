@@ -33,12 +33,17 @@ if _db_url:
     app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     print("[nixapp] database: hosted Postgres (DATABASE_URL)", file=sys.stderr, flush=True)
+elif os.path.isdir("/mnt/data") and os.access("/mnt/data", os.W_OK):
+    # Render persistent disk is attached
+    db_path = "/mnt/data/inventory.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    print("[nixapp] database: SQLite on persistent disk (/mnt/data)", file=sys.stderr, flush=True)
 else:
     db_path = os.path.join(app.instance_path, "inventory.db")
     os.makedirs(app.instance_path, exist_ok=True)
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
     if os.environ.get("RENDER"):
-        print("[nixapp] WARNING: DATABASE_URL not set; using a temporary SQLite file (changes will be lost on redeploy)", file=sys.stderr, flush=True)
+        print("[nixapp] WARNING: no DATABASE_URL and no disk; using a temporary SQLite file (changes will be lost on redeploy)", file=sys.stderr, flush=True)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Production cookie settings
