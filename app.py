@@ -25,8 +25,11 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # Database: use DATABASE_URL (free hosted Postgres) if set, otherwise a local SQLite file
 _db_url = os.environ.get("DATABASE_URL", "").strip()
 if _db_url:
-    if _db_url.startswith("postgres://"):
-        _db_url = "postgresql://" + _db_url[len("postgres://"):]
+    # use the psycopg2 driver (the one in requirements.txt)
+    for _prefix in ("postgres://", "postgresql://"):
+        if _db_url.startswith(_prefix):
+            _db_url = "postgresql+psycopg2://" + _db_url[len(_prefix):]
+            break
     app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     print("[nixapp] database: hosted Postgres (DATABASE_URL)", file=sys.stderr, flush=True)
