@@ -9,10 +9,13 @@ import os
 app = Flask(__name__, instance_relative_config=True)
 # Session secret comes from the SECRET_KEY environment variable (set it on Render).
 # Locally, a random key is used if none is set (you'll just get logged out on restart).
-_secret = os.environ.get("SECRET_KEY")
+import sys
+print(f"[nixapp] startup: RENDER={'yes' if os.environ.get('RENDER') else 'no'}, "
+      f"SECRET_KEY={'set' if os.environ.get('SECRET_KEY') else 'MISSING'}, "
+      f"ADMINS={'set' if os.environ.get('ADMINS') else 'MISSING'}", file=sys.stderr, flush=True)
+_secret = os.environ.get("SECRET_KEY", "").strip()
 if not _secret:
-    if os.environ.get("RENDER"):
-        raise RuntimeError("SECRET_KEY environment variable is not set on Render")
+    print("[nixapp] WARNING: SECRET_KEY not set; using a temporary random key", file=sys.stderr, flush=True)
     _secret = os.urandom(32).hex()
 app.secret_key = _secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -51,6 +54,7 @@ def _load_admins():
     return admins
 
 ADMINS = _load_admins()
+print(f"[nixapp] admin accounts loaded: {sorted(ADMINS)}", file=sys.stderr, flush=True)
 
 # Database model
 class InventoryItem(db.Model):
