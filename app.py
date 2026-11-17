@@ -216,7 +216,7 @@ def delete_file():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('user_type') == 'admin':
-        return redirect(url_for('inventory'))
+        return redirect(url_for('home'))
 
     error = None
     if request.method == 'POST':
@@ -227,7 +227,7 @@ def login():
             session['user_type'] = 'admin'
             session['username'] = user
             session.permanent = True
-            return redirect(url_for('inventory'))
+            return redirect(url_for('home'))
         else:
             error = "Invalid credentials. Please try again."
 
