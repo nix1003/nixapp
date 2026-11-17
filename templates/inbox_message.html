@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex">
+  <title>{{ msg.subject or '(no subject)' }} | NixApp Inbox</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .inbox-wrapper { background:#fff; border-radius:8px; padding:2rem; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:900px; margin:2rem auto; box-sizing:border-box; }
+    .meta { border-bottom:1px solid #ddd; padding-bottom:1rem; margin-bottom:1rem; word-break:break-word; }
+    .meta h2 { margin:0 0 0.5rem; color:#333; }
+    .muted { color:#777; font-size:0.9rem; }
+    .mail-frame { width:100%; height:70vh; border:1px solid #ddd; border-radius:6px; background:#fff; }
+    .mail-text { white-space:pre-wrap; word-break:break-word; font-family:inherit; }
+    .del-btn { background:crimson; color:#fff; border:none; border-radius:6px; padding:0.4rem 0.8rem; cursor:pointer; }
+    .top-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:0.5rem; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <div id="particles-js"></div>
+  <div class="content">
+    <header>
+      <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-6v-6h-4v6H4a1 1 0 0 1-1-1V9.75z"/>
+        </svg>
+      </a>
+      <h1>NixApp</h1>
+      <a href="{{ url_for('logout') }}"><button id="loginBtn">Logout</button></a>
+    </header>
+
+    <main class="container" style="max-width:900px;">
+      <div class="inbox-wrapper">
+        <div class="top-row">
+          <a class="view-button" href="{{ url_for('inbox_address', addr=msg.to_addr) }}">&larr; {{ msg.to_addr }}</a>
+          <form method="post" action="{{ url_for('inbox_delete_message', msg_id=msg.id) }}" onsubmit="return confirm('Delete this email?');">
+            <button class="del-btn" type="submit">Delete</button>
+          </form>
+        </div>
+
+        <div class="meta">
+          <h2>{{ msg.subject or '(no subject)' }}</h2>
+          <div class="muted">From: {{ msg.from_addr }}</div>
+          <div class="muted">To: {{ msg.to_addr }}</div>
+          <div class="muted">{{ msg.received_at.strftime('%b %d, %Y %H:%M') }} UTC</div>
+        </div>
+
+        {% if msg.html_body %}
+          {# Sandboxed: no scripts or forms run; links open in a new tab #}
+          <iframe class="mail-frame"
+                  sandbox="allow-popups allow-popups-to-escape-sandbox"
+                  referrerpolicy="no-referrer"
+                  srcdoc="{{ '<meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;><base target=&quot;_blank&quot;>' | safe }}{{ msg.html_body }}"></iframe>
+        {% elif msg.text_body %}
+          <pre class="mail-text">{{ msg.text_body }}</pre>
+        {% else %}
+          <p class="muted">(This email has no readable text.)</p>
+        {% endif %}
+      </div>
+    </main>
+
+    <footer>&copy; 2025 NixApp</footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script>
+    particlesJS.load('particles-js', '{{ url_for("static", filename="particles.json") }}');
+  </script>
+</body>
+</html>

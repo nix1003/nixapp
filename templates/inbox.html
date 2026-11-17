@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex">
+  <title>Inbox | NixApp</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .inbox-wrapper { background:#fff; border-radius:8px; padding:2rem; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:800px; margin:2rem auto; box-sizing:border-box; }
+    .inbox-wrapper h2 { text-align:center; color:#444; margin-top:0; }
+    .new-address { display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; margin-bottom:2rem; }
+    .new-address input { flex:1; min-width:220px; padding:0.7rem; font-size:1rem; border-radius:6px; border:1px solid #ccc; }
+    .addr-table { width:100%; border-collapse:collapse; }
+    .addr-table th, .addr-table td { padding:0.6rem; text-align:left; border-bottom:1px solid #ddd; }
+    .addr-table th { background:#eee; }
+    .addr-table tr:hover { background:#f9f9f9; }
+    .unread { font-weight:bold; }
+    .badge { background:#444; color:#fff; border-radius:999px; padding:0.1rem 0.5rem; font-size:0.75rem; margin-left:0.3rem; }
+    .muted { color:#777; font-size:0.85rem; }
+    .del-btn { background:crimson; color:#fff; border:none; border-radius:6px; padding:0.3rem 0.6rem; cursor:pointer; font-size:0.8rem; }
+  </style>
+</head>
+<body>
+  <div id="particles-js"></div>
+  <div class="content">
+    <header>
+      <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="20" height="20">
+          <path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-6v-6h-4v6H4a1 1 0 0 1-1-1V9.75z"/>
+        </svg>
+      </a>
+      <h1>NixApp</h1>
+      <a href="{{ url_for('logout') }}"><button id="loginBtn">Logout</button></a>
+    </header>
+
+    <main class="container">
+      <div class="inbox-wrapper">
+        <h2>Inbox</h2>
+
+        <p class="muted" style="text-align:center;">Any address @{{ domain }} works. Use this one or make up your own.</p>
+        <div class="new-address">
+          <input type="text" id="newAddr" value="{{ new_address }}" readonly onclick="this.select()">
+          <button class="view-button" onclick="copyAddr()">Copy</button>
+          <a class="view-button" href="{{ url_for('inbox') }}">New address</a>
+        </div>
+
+        {% if addresses %}
+        <table class="addr-table">
+          <thead><tr><th>Address</th><th>Messages</th><th>Latest</th><th></th></tr></thead>
+          <tbody>
+            {% for a in addresses %}
+            <tr class="{{ 'unread' if a.unread else '' }}">
+              <td><a href="{{ url_for('inbox_address', addr=a.addr) }}">{{ a.addr }}</a>
+                {% if a.unread %}<span class="badge">{{ a.unread }} new</span>{% endif %}</td>
+              <td>{{ a.count }}</td>
+              <td class="muted">{{ a.latest.strftime('%b %d, %H:%M') if a.latest else '' }} UTC</td>
+              <td>
+                <form method="post" action="{{ url_for('inbox_delete_address', addr=a.addr) }}" onsubmit="return confirm('Delete all mail for {{ a.addr }}?');">
+                  <button class="del-btn" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p style="text-align:center;">No mail yet.</p>
+        {% endif %}
+      </div>
+    </main>
+
+    <footer>&copy; 2025 NixApp</footer>
+  </div>
+
+  <script>
+    function copyAddr() {
+      const el = document.getElementById('newAddr');
+      navigator.clipboard.writeText(el.value).then(() => { el.select(); });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script>
+    particlesJS.load('particles-js', '{{ url_for("static", filename="particles.json") }}');
+  </script>
+</body>
+</html>

@@ -5,6 +5,12 @@ from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 import os
 import json
+import hmac
+import secrets
+import email
+import email.policy
+import email.utils
+from datetime import datetime, timezone
 from sqlalchemy import text, func, select, insert
 
 # Initialize Flask app
@@ -78,6 +84,16 @@ class InventoryItem(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, default=0.0)
     url = db.Column(db.String(255))
+
+class EmailMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    to_addr = db.Column(db.String(320), nullable=False, index=True)
+    from_addr = db.Column(db.String(320))
+    subject = db.Column(db.String(500))
+    received_at = db.Column(db.DateTime, nullable=False, index=True)
+    text_body = db.Column(db.Text)
+    html_body = db.Column(db.Text)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
 
 # Create tables, and load inventory_seed.json the first time the database is empty
 def _init_db():
@@ -256,6 +272,130 @@ def logout():
 def stremioguide():
     return render_template('stremioguide.html')
 
+
+# ---------------- Email inbox ---------------- #
+# Cloudflare Email Routing (catch-all) -> Email Worker -> POST /api/inbound-email
+# The worker must send the same secret as the INBOUND_EMAIL_SECRET environment variable.
+EMAIL_DOMAIN = os.environ.get("EMAIL_DOMAIN", "nixapp.org")
+MAX_INBOUND_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_BODY_CHARS = 500_000
+
+def _is_admin():
+    return session.get('user_type') == 'admin'
+
+def _clean_addr(value, limit=320):
+    _, addr = email.utils.parseaddr(value or "")
+    return (addr or value or "").strip().lower()[:limit]
+
+def _extract_bodies(msg):
+    text_body, html_body = None, None
+    try:
+        part = msg.get_body(preferencelist=('plain',))
+        if part is not None:
+            text_body = part.get_content()
+    except Exception:
+        pass
+    try:
+        part = msg.get_body(preferencelist=('html',))
+        if part is not None:
+            html_body = part.get_content()
+    except Exception:
+        pass
+    if text_body:
+        text_body = text_body[:MAX_BODY_CHARS]
+    if html_body:
+        html_body = html_body[:MAX_BODY_CHARS]
+    return text_body, html_body
+
+@app.route('/api/inbound-email', methods=['POST'])
+def inbound_email():
+    expected = os.environ.get("INBOUND_EMAIL_SECRET", "")
+    provided = request.headers.get("X-Inbound-Secret", "")
+    if not expected:
+        return jsonify({'error': 'Inbound email not configured'}), 503
+    if not hmac.compare_digest(provided.encode(), expected.encode()):
+        return jsonify({'error': 'Unauthorized'}), 403
+    if (request.content_length or 0) > MAX_INBOUND_BYTES:
+        return jsonify({'error': 'Too large'}), 413
+
+    raw = request.get_data(cache=False)
+    if not raw or len(raw) > MAX_INBOUND_BYTES:
+        return jsonify({'error': 'Bad request'}), 400
+
+    msg = email.message_from_bytes(raw, policy=email.policy.default)
+    to_addr = _clean_addr(request.headers.get("X-Envelope-To") or msg.get('To', ''))
+    from_addr = _clean_addr(request.headers.get("X-Envelope-From") or msg.get('From', ''))
+    subject = str(msg.get('Subject', '') or '')[:500]
+    text_body, html_body = _extract_bodies(msg)
+
+    if not to_addr:
+        return jsonify({'error': 'No recipient'}), 400
+
+    db.session.add(EmailMessage(
+        to_addr=to_addr,
+        from_addr=from_addr,
+        subject=subject,
+        received_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        text_body=text_body,
+        html_body=html_body,
+    ))
+    db.session.commit()
+    return jsonify({'status': 'stored'})
+
+@app.route('/inbox')
+def inbox():
+    if not _is_admin():
+        return redirect(url_for('login'))
+    rows = db.session.query(
+        EmailMessage.to_addr,
+        func.count(EmailMessage.id),
+        func.max(EmailMessage.received_at),
+        func.sum(db.case((EmailMessage.is_read == False, 1), else_=0)),
+    ).group_by(EmailMessage.to_addr).order_by(func.max(EmailMessage.received_at).desc()).all()
+    addresses = [{'addr': r[0], 'count': r[1], 'latest': r[2], 'unread': int(r[3] or 0)} for r in rows]
+    new_address = f"{secrets.token_hex(5)}@{EMAIL_DOMAIN}"
+    return render_template('inbox.html', addresses=addresses, new_address=new_address, domain=EMAIL_DOMAIN)
+
+@app.route('/inbox/address/<path:addr>')
+def inbox_address(addr):
+    if not _is_admin():
+        return redirect(url_for('login'))
+    addr = addr.strip().lower()
+    messages = EmailMessage.query.filter_by(to_addr=addr).order_by(EmailMessage.received_at.desc()).all()
+    return render_template('inbox_address.html', addr=addr, messages=messages)
+
+@app.route('/inbox/message/<int:msg_id>')
+def inbox_message(msg_id):
+    if not _is_admin():
+        return redirect(url_for('login'))
+    msg = db.session.get(EmailMessage, msg_id)
+    if not msg:
+        return redirect(url_for('inbox'))
+    if not msg.is_read:
+        msg.is_read = True
+        db.session.commit()
+    return render_template('inbox_message.html', msg=msg)
+
+@app.route('/inbox/message/<int:msg_id>/delete', methods=['POST'])
+def inbox_delete_message(msg_id):
+    if not _is_admin():
+        return jsonify({'error': 'Unauthorized'}), 403
+    msg = db.session.get(EmailMessage, msg_id)
+    addr = msg.to_addr if msg else None
+    if msg:
+        db.session.delete(msg)
+        db.session.commit()
+    if addr and EmailMessage.query.filter_by(to_addr=addr).count():
+        return redirect(url_for('inbox_address', addr=addr))
+    return redirect(url_for('inbox'))
+
+@app.route('/inbox/address/<path:addr>/delete', methods=['POST'])
+def inbox_delete_address(addr):
+    if not _is_admin():
+        return jsonify({'error': 'Unauthorized'}), 403
+    EmailMessage.query.filter_by(to_addr=addr.strip().lower()).delete()
+    db.session.commit()
+    return redirect(url_for('inbox'))
 
 # ---------------------------- #
 
