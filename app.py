@@ -64,21 +64,26 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 # Initialize database
 db = SQLAlchemy(app)
 
-# Admin accounts come from the ADMINS environment variable, as hashed passwords:
-#   ADMINS = username:hash,username2:hash2
+# Accounts come from environment variables, as comma-separated username:hash pairs:
+#   ADMINS = username:hash,username2:hash2   (full admins: inventory, downloads, email)
+#   USERS  = username:hash,username2:hash2   (level-2 users: email pages only)
 # Make a hash with:
 #   python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('NEW_PASSWORD'))"
-# If ADMINS is not set, nobody can log in.
-def _load_admins():
-    admins = {}
-    for entry in os.environ.get("ADMINS", "").split(","):
+# If neither is set, nobody can log in.
+def _load_accounts(var_name):
+    accounts = {}
+    for entry in os.environ.get(var_name, "").split(","):
         name, sep, pw_hash = entry.strip().partition(":")
         if name and sep and pw_hash:
-            admins[name] = pw_hash
-    return admins
+            accounts[name] = pw_hash
+    return accounts
 
-ADMINS = _load_admins()
+ADMINS = _load_accounts("ADMINS")
+USERS = _load_accounts("USERS")
+# If a name appears in both, the admin account wins.
+USERS = {name: h for name, h in USERS.items() if name not in ADMINS}
 print(f"[nixapp] admin accounts loaded: {sorted(ADMINS)}", file=sys.stderr, flush=True)
+print(f"[nixapp] user accounts loaded: {sorted(USERS)}", file=sys.stderr, flush=True)
 
 # Database model
 class InventoryItem(db.Model):
@@ -245,7 +250,7 @@ def delete_file():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if session.get('user_type') == 'admin':
+    if session.get('user_type') in ('admin', 'user'):
         return redirect(url_for('home'))
 
     error = None
@@ -255,6 +260,11 @@ def login():
 
         if user in ADMINS and check_password_hash(ADMINS[user], password):
             session['user_type'] = 'admin'
+            session['username'] = user
+            session.permanent = True
+            return redirect(url_for('home'))
+        elif user in USERS and check_password_hash(USERS[user], password):
+            session['user_type'] = 'user'
             session['username'] = user
             session.permanent = True
             return redirect(url_for('home'))
@@ -312,6 +322,10 @@ MAX_BODY_CHARS = 500_000
 
 def _is_admin():
     return session.get('user_type') == 'admin'
+
+def _is_staff():
+    # Full admins and level-2 users can both reach the email pages.
+    return session.get('user_type') in ('admin', 'user')
 
 def _clean_addr(value, limit=320):
     _, addr = email.utils.parseaddr(value or "")
@@ -375,7 +389,7 @@ def inbound_email():
 
 @app.route('/inbox')
 def inbox():
-    if not _is_admin():
+    if not _is_staff():
         return redirect(url_for('login'))
     rows = db.session.query(
         EmailMessage.to_addr,
@@ -391,7 +405,7 @@ def inbox():
 
 @app.route('/inbox/address/<path:addr>')
 def inbox_address(addr):
-    if not _is_admin():
+    if not _is_staff():
         return redirect(url_for('login'))
     addr = addr.strip().lower()
     messages = EmailMessage.query.filter_by(to_addr=addr, is_archived=False).order_by(EmailMessage.received_at.desc()).all()
@@ -399,7 +413,7 @@ def inbox_address(addr):
 
 @app.route('/inbox/message/<int:msg_id>')
 def inbox_message(msg_id):
-    if not _is_admin():
+    if not _is_staff():
         return redirect(url_for('login'))
     msg = db.session.get(EmailMessage, msg_id)
     if not msg:
@@ -411,7 +425,7 @@ def inbox_message(msg_id):
 
 @app.route('/inbox/message/<int:msg_id>/delete', methods=['POST'])
 def inbox_delete_message(msg_id):
-    if not _is_admin():
+    if not _is_staff():
         return jsonify({'error': 'Unauthorized'}), 403
     msg = db.session.get(EmailMessage, msg_id)
     addr = msg.to_addr if msg else None
@@ -424,7 +438,7 @@ def inbox_delete_message(msg_id):
 
 @app.route('/inbox/address/<path:addr>/delete', methods=['POST'])
 def inbox_delete_address(addr):
-    if not _is_admin():
+    if not _is_staff():
         return jsonify({'error': 'Unauthorized'}), 403
     EmailMessage.query.filter_by(to_addr=addr.strip().lower()).delete()
     db.session.commit()
@@ -432,7 +446,7 @@ def inbox_delete_address(addr):
 
 @app.route('/inbox/message/<int:msg_id>/archive', methods=['POST'])
 def inbox_archive_message(msg_id):
-    if not _is_admin():
+    if not _is_staff():
         return jsonify({'error': 'Unauthorized'}), 403
     msg = db.session.get(EmailMessage, msg_id)
     if not msg:
@@ -447,7 +461,7 @@ def inbox_archive_message(msg_id):
 
 @app.route('/inbox/message/<int:msg_id>/unarchive', methods=['POST'])
 def inbox_unarchive_message(msg_id):
-    if not _is_admin():
+    if not _is_staff():
         return jsonify({'error': 'Unauthorized'}), 403
     msg = db.session.get(EmailMessage, msg_id)
     if msg:
@@ -458,7 +472,7 @@ def inbox_unarchive_message(msg_id):
 
 @app.route('/inbox/archived')
 def inbox_archived():
-    if not _is_admin():
+    if not _is_staff():
         return redirect(url_for('login'))
     messages = EmailMessage.query.filter_by(is_archived=True).order_by(EmailMessage.received_at.desc()).all()
     return render_template('inbox_archived.html', messages=messages)
@@ -513,7 +527,7 @@ def _send_via_resend(from_addr, to_addrs, subject, text_body, in_reply_to=None):
 
 @app.route('/inbox/compose', methods=['GET', 'POST'])
 def inbox_compose():
-    if not _is_admin():
+    if not _is_staff():
         return redirect(url_for('login'))
     can_send = bool(os.environ.get("RESEND_API_KEY"))
     error = None
@@ -571,7 +585,7 @@ def inbox_compose():
 
 @app.route('/inbox/sent')
 def inbox_sent():
-    if not _is_admin():
+    if not _is_staff():
         return redirect(url_for('login'))
     sent = SentEmail.query.order_by(SentEmail.sent_at.desc()).limit(200).all()
     return render_template('inbox_sent.html', sent=sent)

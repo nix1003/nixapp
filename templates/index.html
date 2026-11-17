@@ -20,7 +20,7 @@
       </a>
       <h1>NixApp</h1>
 
-      {% if session.get('user_type') == 'admin' %}
+      {% if session.get('user_type') in ['admin', 'user'] %}
         <a href="{{ url_for('logout') }}">
           <button id="loginBtn">Logout</button>
         </a>
@@ -59,8 +59,8 @@
         <p>A tutorial for setting up and maintaining Stremio.</p>
       </a>
 
-      {% if session.get('user_type') == 'admin' %}
-      <!-- Admin only -->
+      {% if session.get('user_type') in ['admin', 'user'] %}
+      <!-- Admins and level-2 users -->
       <a href="{{ url_for('inbox') }}" class="project-card">
         <h2>Inbox</h2>
         <p>Email for any address @nixapp.org.</p>
