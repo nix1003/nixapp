@@ -15,6 +15,8 @@
     .mail-text { white-space:pre-wrap; word-break:break-word; font-family:inherit; }
     .del-btn { background:crimson; color:#fff; border:none; border-radius:6px; padding:0.4rem 0.8rem; cursor:pointer; }
     .top-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:0.5rem; flex-wrap:wrap; }
+    .actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+    .arch-btn { background:#666; color:#fff; border:none; border-radius:6px; padding:0.4rem 0.8rem; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -34,9 +36,21 @@
       <div class="inbox-wrapper">
         <div class="top-row">
           <a class="view-button" href="{{ url_for('inbox_address', addr=msg.to_addr) }}">&larr; {{ msg.to_addr }}</a>
-          <form method="post" action="{{ url_for('inbox_delete_message', msg_id=msg.id) }}" onsubmit="return confirm('Delete this email?');">
-            <button class="del-btn" type="submit">Delete</button>
-          </form>
+          <div class="actions">
+            <a class="view-button" href="{{ url_for('inbox_compose', reply_to=msg.id) }}">&#8617; Reply</a>
+            {% if msg.is_archived %}
+            <form method="post" action="{{ url_for('inbox_unarchive_message', msg_id=msg.id) }}">
+              <button class="arch-btn" type="submit">Unarchive</button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('inbox_archive_message', msg_id=msg.id) }}">
+              <button class="arch-btn" type="submit">Archive</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('inbox_delete_message', msg_id=msg.id) }}" onsubmit="return confirm('Delete this email?');">
+              <button class="del-btn" type="submit">Delete</button>
+            </form>
+          </div>
         </div>
 
         <div class="meta">

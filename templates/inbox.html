@@ -19,6 +19,8 @@
     .badge { background:#444; color:#fff; border-radius:999px; padding:0.1rem 0.5rem; font-size:0.75rem; margin-left:0.3rem; }
     .muted { color:#777; font-size:0.85rem; }
     .del-btn { background:crimson; color:#fff; border:none; border-radius:6px; padding:0.3rem 0.6rem; cursor:pointer; font-size:0.8rem; }
+    .flash { background:#e8f5e9; color:#2e7d32; border-radius:6px; padding:0.6rem 0.9rem; margin-bottom:1rem; text-align:center; }
+    .inbox-nav { display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap; margin-bottom:1.5rem; }
   </style>
 </head>
 <body>
@@ -37,6 +39,14 @@
     <main class="container">
       <div class="inbox-wrapper">
         <h2>Inbox</h2>
+        {% with msgs = get_flashed_messages() %}{% if msgs %}
+        <div class="flash">{% for m in msgs %}<div>{{ m }}</div>{% endfor %}</div>
+        {% endif %}{% endwith %}
+        <div class="inbox-nav">
+          <a class="view-button" href="{{ url_for('inbox_compose') }}">&#9998; Compose</a>
+          <a class="view-button" href="{{ url_for('inbox_sent') }}">Sent</a>
+          <a class="view-button" href="{{ url_for('inbox_archived') }}">Archived{% if archived_count %} ({{ archived_count }}){% endif %}</a>
+        </div>
 
         <p class="muted" style="text-align:center;">Any address @{{ domain }} works. Use this one or make up your own.</p>
         <div class="new-address">

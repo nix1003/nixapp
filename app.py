@@ -10,8 +10,11 @@ import secrets
 import email
 import email.policy
 import email.utils
+import re
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
-from sqlalchemy import text, func, select, insert
+from sqlalchemy import text, func, select, insert, inspect
 
 # Initialize Flask app
 app = Flask(__name__, instance_relative_config=True)
@@ -94,6 +97,17 @@ class EmailMessage(db.Model):
     text_body = db.Column(db.Text)
     html_body = db.Column(db.Text)
     is_read = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    message_id = db.Column(db.String(500))
+
+class SentEmail(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    from_addr = db.Column(db.String(320), nullable=False)
+    to_addrs = db.Column(db.String(2000), nullable=False)
+    subject = db.Column(db.String(500))
+    text_body = db.Column(db.Text)
+    sent_at = db.Column(db.DateTime, nullable=False, index=True)
+    provider_id = db.Column(db.String(200))
 
 # Create tables, and load inventory_seed.json the first time the database is empty
 def _init_db():
@@ -118,6 +132,22 @@ def _init_db():
                 if rows:
                     conn.execute(insert(table), rows)
                 print(f"[nixapp] loaded {len(rows)} items from inventory_seed.json", file=sys.stderr, flush=True)
+
+    # Add columns that were introduced after the email table was first created
+    with app.app_context():
+        try:
+            with db.engine.begin() as conn:
+                existing = {c["name"] for c in inspect(conn).get_columns("email_message")}
+                false_default = "false" if conn.dialect.name == "postgresql" else "0"
+                if "is_archived" not in existing:
+                    conn.execute(text(f"ALTER TABLE email_message ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT {false_default}"))
+                    print("[nixapp] added column email_message.is_archived", file=sys.stderr, flush=True)
+                if "message_id" not in existing:
+                    conn.execute(text("ALTER TABLE email_message ADD COLUMN message_id VARCHAR(500)"))
+                    print("[nixapp] added column email_message.message_id", file=sys.stderr, flush=True)
+        except Exception as e:
+            # another worker may have added the column at the same moment
+            print(f"[nixapp] column check: {e}", file=sys.stderr, flush=True)
 
 _init_db()
 
@@ -338,6 +368,7 @@ def inbound_email():
         received_at=datetime.now(timezone.utc).replace(tzinfo=None),
         text_body=text_body,
         html_body=html_body,
+        message_id=str(msg.get('Message-ID', '') or '').strip()[:500] or None,
     ))
     db.session.commit()
     return jsonify({'status': 'stored'})
@@ -351,17 +382,19 @@ def inbox():
         func.count(EmailMessage.id),
         func.max(EmailMessage.received_at),
         func.sum(db.case((EmailMessage.is_read == False, 1), else_=0)),
-    ).group_by(EmailMessage.to_addr).order_by(func.max(EmailMessage.received_at).desc()).all()
+    ).filter(EmailMessage.is_archived == False).group_by(EmailMessage.to_addr).order_by(func.max(EmailMessage.received_at).desc()).all()
     addresses = [{'addr': r[0], 'count': r[1], 'latest': r[2], 'unread': int(r[3] or 0)} for r in rows]
     new_address = f"{secrets.token_hex(5)}@{EMAIL_DOMAIN}"
-    return render_template('inbox.html', addresses=addresses, new_address=new_address, domain=EMAIL_DOMAIN)
+    archived_count = EmailMessage.query.filter_by(is_archived=True).count()
+    return render_template('inbox.html', addresses=addresses, new_address=new_address, domain=EMAIL_DOMAIN,
+                           archived_count=archived_count, can_send=bool(os.environ.get("RESEND_API_KEY")))
 
 @app.route('/inbox/address/<path:addr>')
 def inbox_address(addr):
     if not _is_admin():
         return redirect(url_for('login'))
     addr = addr.strip().lower()
-    messages = EmailMessage.query.filter_by(to_addr=addr).order_by(EmailMessage.received_at.desc()).all()
+    messages = EmailMessage.query.filter_by(to_addr=addr, is_archived=False).order_by(EmailMessage.received_at.desc()).all()
     return render_template('inbox_address.html', addr=addr, messages=messages)
 
 @app.route('/inbox/message/<int:msg_id>')
@@ -374,7 +407,7 @@ def inbox_message(msg_id):
     if not msg.is_read:
         msg.is_read = True
         db.session.commit()
-    return render_template('inbox_message.html', msg=msg)
+    return render_template('inbox_message.html', msg=msg, can_send=bool(os.environ.get("RESEND_API_KEY")))
 
 @app.route('/inbox/message/<int:msg_id>/delete', methods=['POST'])
 def inbox_delete_message(msg_id):
@@ -385,7 +418,7 @@ def inbox_delete_message(msg_id):
     if msg:
         db.session.delete(msg)
         db.session.commit()
-    if addr and EmailMessage.query.filter_by(to_addr=addr).count():
+    if addr and EmailMessage.query.filter_by(to_addr=addr, is_archived=False).count():
         return redirect(url_for('inbox_address', addr=addr))
     return redirect(url_for('inbox'))
 
@@ -396,6 +429,152 @@ def inbox_delete_address(addr):
     EmailMessage.query.filter_by(to_addr=addr.strip().lower()).delete()
     db.session.commit()
     return redirect(url_for('inbox'))
+
+@app.route('/inbox/message/<int:msg_id>/archive', methods=['POST'])
+def inbox_archive_message(msg_id):
+    if not _is_admin():
+        return jsonify({'error': 'Unauthorized'}), 403
+    msg = db.session.get(EmailMessage, msg_id)
+    if not msg:
+        return redirect(url_for('inbox'))
+    msg.is_archived = True
+    msg.is_read = True
+    db.session.commit()
+    flash('Email archived.')
+    if EmailMessage.query.filter_by(to_addr=msg.to_addr, is_archived=False).count():
+        return redirect(url_for('inbox_address', addr=msg.to_addr))
+    return redirect(url_for('inbox'))
+
+@app.route('/inbox/message/<int:msg_id>/unarchive', methods=['POST'])
+def inbox_unarchive_message(msg_id):
+    if not _is_admin():
+        return jsonify({'error': 'Unauthorized'}), 403
+    msg = db.session.get(EmailMessage, msg_id)
+    if msg:
+        msg.is_archived = False
+        db.session.commit()
+        flash('Moved back to inbox.')
+    return redirect(url_for('inbox_archived'))
+
+@app.route('/inbox/archived')
+def inbox_archived():
+    if not _is_admin():
+        return redirect(url_for('login'))
+    messages = EmailMessage.query.filter_by(is_archived=True).order_by(EmailMessage.received_at.desc()).all()
+    return render_template('inbox_archived.html', messages=messages)
+
+# ---------------- Sending (Resend) ---------------- #
+# Needs RESEND_API_KEY on Render, and nixapp.org verified in Resend.
+_LOCAL_PART_RE = re.compile(r"^[a-z0-9][a-z0-9._+-]{0,63}$")
+MAX_RECIPIENTS = 10
+
+def _parse_recipients(value):
+    addrs = []
+    for part in (value or "").replace(";", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        _, addr = email.utils.parseaddr(part)
+        addr = addr.strip()
+        if not addr or "@" not in addr or " " in addr or len(addr) > 320:
+            raise ValueError(f'"{part}" is not a valid email address')
+        addrs.append(addr)
+    if not addrs:
+        raise ValueError("Add at least one recipient")
+    if len(addrs) > MAX_RECIPIENTS:
+        raise ValueError(f"At most {MAX_RECIPIENTS} recipients")
+    return addrs
+
+def _send_via_resend(from_addr, to_addrs, subject, text_body, in_reply_to=None):
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Sending isn't set up yet (RESEND_API_KEY is missing on Render).")
+    payload = {"from": from_addr, "to": to_addrs, "subject": subject, "text": text_body}
+    if in_reply_to:
+        payload["headers"] = {"In-Reply-To": in_reply_to, "References": in_reply_to}
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "nixapp"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return json.loads(resp.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")
+        try:
+            detail = json.loads(detail).get("message", detail)
+        except Exception:
+            pass
+        raise RuntimeError(f"Resend refused the email: {detail}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Couldn't reach Resend: {e.reason}")
+
+@app.route('/inbox/compose', methods=['GET', 'POST'])
+def inbox_compose():
+    if not _is_admin():
+        return redirect(url_for('login'))
+    can_send = bool(os.environ.get("RESEND_API_KEY"))
+    error = None
+    reply_to_id = request.values.get('reply_to', type=int)
+    original = db.session.get(EmailMessage, reply_to_id) if reply_to_id else None
+
+    if request.method == 'POST':
+        from_local = (request.form.get('from_local') or '').strip().lower()
+        to_raw = request.form.get('to', '')
+        subject = (request.form.get('subject') or '').strip()[:500]
+        body = (request.form.get('body') or '')[:MAX_BODY_CHARS]
+        try:
+            if not _LOCAL_PART_RE.match(from_local):
+                raise ValueError("The From name can only use letters, numbers, dots, dashes, underscores and +")
+            if not subject:
+                raise ValueError("Add a subject")
+            to_addrs = _parse_recipients(to_raw)
+            from_addr = f"{from_local}@{EMAIL_DOMAIN}"
+            result = _send_via_resend(from_addr, to_addrs, subject, body,
+                                      in_reply_to=original.message_id if original else None)
+            db.session.add(SentEmail(
+                from_addr=from_addr,
+                to_addrs=", ".join(to_addrs)[:2000],
+                subject=subject,
+                text_body=body,
+                sent_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                provider_id=str(result.get("id", ""))[:200] or None,
+            ))
+            db.session.commit()
+            flash(f"Sent from {from_addr}.")
+            return redirect(url_for('inbox_sent'))
+        except (ValueError, RuntimeError) as e:
+            error = str(e)
+        form = {'from_local': from_local, 'to': to_raw, 'subject': subject, 'body': body}
+    else:
+        if original:
+            subj = original.subject or ''
+            quoted = "\n".join("> " + line for line in (original.text_body or '').splitlines())
+            form = {
+                'from_local': original.to_addr.split('@')[0],
+                'to': original.from_addr or '',
+                'subject': subj if subj.lower().startswith('re:') else f"Re: {subj}",
+                'body': f"\n\nOn {original.received_at.strftime('%b %d, %Y %H:%M')} UTC, {original.from_addr} wrote:\n{quoted}",
+            }
+        else:
+            from_q = (request.args.get('from') or '').strip().lower()
+            form = {
+                'from_local': from_q.split('@')[0] if from_q else secrets.token_hex(5),
+                'to': request.args.get('to', ''),
+                'subject': '',
+                'body': '',
+            }
+    return render_template('inbox_compose.html', form=form, error=error, domain=EMAIL_DOMAIN,
+                           can_send=can_send, original=original)
+
+@app.route('/inbox/sent')
+def inbox_sent():
+    if not _is_admin():
+        return redirect(url_for('login'))
+    sent = SentEmail.query.order_by(SentEmail.sent_at.desc()).limit(200).all()
+    return render_template('inbox_sent.html', sent=sent)
 
 # ---------------------------- #
 
