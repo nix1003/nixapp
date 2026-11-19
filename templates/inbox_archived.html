@@ -48,7 +48,7 @@
           <li style="display:flex; align-items:center; gap:0.5rem;">
             <a href="{{ url_for('inbox_message', msg_id=m.id) }}" style="flex:1;">
               {{ m.subject or '(no subject)' }}<br>
-              <span class="muted">{{ m.to_addr }} &middot; from {{ m.from_addr }} &middot; {{ m.received_at.strftime('%b %d, %Y %H:%M') }} UTC</span>
+              <span class="muted">{{ m.to_addr }} &middot; from {{ m.from_addr }} &middot; {{ m.received_at|est }}</span>
             </a>
             <form method="post" action="{{ url_for('inbox_unarchive_message', msg_id=m.id) }}">
               <button class="view-button" type="submit" style="border:none; cursor:pointer;">Unarchive</button>

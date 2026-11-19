@@ -64,7 +64,7 @@
               <td><a href="{{ url_for('inbox_address', addr=a.addr) }}">{{ a.addr }}</a>
                 {% if a.unread %}<span class="badge">{{ a.unread }} new</span>{% endif %}</td>
               <td>{{ a.count }}</td>
-              <td class="muted">{{ a.latest.strftime('%b %d, %H:%M') if a.latest else '' }} UTC</td>
+              <td class="muted">{{ a.latest|est('%b %d, %I:%M %p') if a.latest else '' }}</td>
               <td>
                 <form method="post" action="{{ url_for('inbox_delete_address', addr=a.addr) }}" onsubmit="return confirm('Delete all mail for {{ a.addr }}?');">
                   <button class="del-btn" type="submit">Delete</button>

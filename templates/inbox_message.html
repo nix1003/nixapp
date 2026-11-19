@@ -57,7 +57,7 @@
           <h2>{{ msg.subject or '(no subject)' }}</h2>
           <div class="muted">From: {{ msg.from_addr }}</div>
           <div class="muted">To: {{ msg.to_addr }}</div>
-          <div class="muted">{{ msg.received_at.strftime('%b %d, %Y %H:%M') }} UTC</div>
+          <div class="muted">{{ msg.received_at|est }}</div>
         </div>
 
         {% if msg.html_body %}

@@ -31,6 +31,29 @@ if not _secret:
 app.secret_key = _secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Show times in Eastern time (EST/EDT). Times are stored in the database as UTC.
+try:
+    from zoneinfo import ZoneInfo
+    EASTERN = ZoneInfo("America/New_York")
+except Exception:
+    from datetime import timedelta
+    EASTERN = timezone(timedelta(hours=-5), "EST")
+
+def to_eastern(dt):
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(EASTERN)
+
+@app.template_filter("est")
+def est_filter(dt, fmt="%b %d, %Y %I:%M %p"):
+    """Usage in templates: {{ some_time|est }}  ->  'Nov 19, 2026 01:21 PM EST'"""
+    local = to_eastern(dt)
+    if local is None:
+        return ""
+    return f"{local.strftime(fmt)} {local.strftime('%Z')}"
+
 # Database: use DATABASE_URL (free hosted Postgres) if set, otherwise a local SQLite file
 _db_url = os.environ.get("DATABASE_URL", "").strip()
 if _db_url:
@@ -570,7 +593,7 @@ def inbox_compose():
                 'from_local': original.to_addr.split('@')[0],
                 'to': original.from_addr or '',
                 'subject': subj if subj.lower().startswith('re:') else f"Re: {subj}",
-                'body': f"\n\nOn {original.received_at.strftime('%b %d, %Y %H:%M')} UTC, {original.from_addr} wrote:\n{quoted}",
+                'body': f"\n\nOn {est_filter(original.received_at)}, {original.from_addr} wrote:\n{quoted}",
             }
         else:
             from_q = (request.args.get('from') or '').strip().lower()

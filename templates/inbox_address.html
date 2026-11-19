@@ -53,7 +53,7 @@
           <li>
             <a href="{{ url_for('inbox_message', msg_id=m.id) }}" class="{{ '' if m.is_read else 'unread' }}">
               {{ m.subject or '(no subject)' }}<br>
-              <span class="muted">{{ m.from_addr }} &middot; {{ m.received_at.strftime('%b %d, %Y %H:%M') }} UTC</span>
+              <span class="muted">{{ m.from_addr }} &middot; {{ m.received_at|est }}</span>
             </a>
           </li>
           {% endfor %}
