@@ -46,6 +46,11 @@
           <a class="view-button" href="{{ url_for('inbox_compose') }}">&#9998; Compose</a>
           <a class="view-button" href="{{ url_for('inbox_sent') }}">Sent</a>
           <a class="view-button" href="{{ url_for('inbox_archived') }}">Archived{% if archived_count %} ({{ archived_count }}){% endif %}</a>
+          {% if addresses %}
+          <form method="post" action="{{ url_for('inbox_archive_all') }}" onsubmit="return confirm('Archive every email in the inbox?');" style="margin:0;">
+            <button class="view-button" type="submit" style="border:none; cursor:pointer;">Archive all</button>
+          </form>
+          {% endif %}
         </div>
 
         <p class="muted" style="text-align:center;">Any address @{{ domain }} works. Use this one or make up your own.</p>

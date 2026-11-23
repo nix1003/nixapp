@@ -493,6 +493,21 @@ def inbox_unarchive_message(msg_id):
         flash('Moved back to inbox.')
     return redirect(url_for('inbox_archived'))
 
+@app.route('/inbox/archive-all', methods=['POST'])
+def inbox_archive_all():
+    if not _is_staff():
+        return jsonify({'error': 'Unauthorized'}), 403
+    updated = EmailMessage.query.filter_by(is_archived=False).update(
+        {EmailMessage.is_archived: True, EmailMessage.is_read: True},
+        synchronize_session=False,
+    )
+    db.session.commit()
+    if updated:
+        flash(f'Archived {updated} email{"s" if updated != 1 else ""}.')
+    else:
+        flash('No emails to archive.')
+    return redirect(url_for('inbox'))
+
 @app.route('/inbox/archived')
 def inbox_archived():
     if not _is_staff():
